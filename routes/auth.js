@@ -77,30 +77,19 @@ const generateOTP = () => {
 // Login route
 router.post('/login', async (req, res) => {
   try {
-    console.log('=== LOGIN ATTEMPT START ===');
     const { email, password } = req.body;
     
     if (!email || !password) {
-      console.log('Missing email or password');
       return res.status(400).json({ message: 'Email and password are required' });
     }
     
     const normalizedEmail = email.toLowerCase().trim();
-    console.log('Login attempt for email:', normalizedEmail);
-    console.log('Password received:', password ? 'Yes' : 'No');
     
     // First try staff login
-    console.log('Checking staff collection...');
     const staff = await Staff.findOne({ email: normalizedEmail });
     if (staff) {
-      console.log('Found staff user:', staff.email);
-      console.log('Staff user ID:', staff.staffId);
-      console.log('Staff role:', staff.role);
-      console.log('Staff isApproved:', staff.isApproved);
-      
       // Check if staff is approved
       if (!staff.isApproved) {
-        console.log('Staff account not approved:', staff.email);
         return res.status(403).json({ 
           message: 'Your account is pending approval. Please contact the administrator.',
           isApproved: false
@@ -108,16 +97,13 @@ router.post('/login', async (req, res) => {
       }
       
       try {
-        console.log('Comparing staff password...');
         const isMatch = await staff.comparePassword(password);
-        console.log('Staff password match:', isMatch);
         if (isMatch) {
           const token = jwt.sign(
             { userId: staff.staffId, role: 'staff' },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
           );
-          console.log('=== LOGIN SUCCESS (STAFF) ===');
 
           // Create audit trail for sign-in (staff)
           try {
@@ -153,43 +139,28 @@ router.post('/login', async (req, res) => {
             updatedAt: staff.updatedAt
           };
 
-          console.log('=== SENDING LOGIN RESPONSE ===');
-          console.log('Formatted user data:', userData);
-          console.log('=== END LOGIN RESPONSE ===');
-
           return res.json({
             message: 'Login successful',
             user: userData,
             token: token
           });
-        } else {
-          console.log('Staff password does not match');
         }
       } catch (error) {
         console.error('Error comparing staff password:', error);
       }
-    } else {
-      console.log('No staff user found with email:', normalizedEmail);
     }
 
     // If staff login fails, try patient login
-    console.log('Checking patient collection...');
     const patient = await Patient.findOne({ email: normalizedEmail });
     if (patient) {
-      console.log('Found patient user:', patient.email);
-      console.log('Patient user ID:', patient.patientId);
-      console.log('Patient role:', patient.role);
       try {
-        console.log('Comparing patient password...');
         const isMatch = await patient.comparePassword(password);
-        console.log('Patient password match:', isMatch);
         if (isMatch) {
           const token = jwt.sign(
             { userId: patient.patientId, role: patient.role.toLowerCase() },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
           );
-          console.log('=== LOGIN SUCCESS (PATIENT) ===');
 
           // Create audit trail for sign-in (patient)
           try {
@@ -219,26 +190,17 @@ router.post('/login', async (req, res) => {
             isVerified: patient.isVerified,
           };
 
-          console.log('=== SENDING LOGIN RESPONSE ===');
-          console.log('Formatted user data:', userData);
-          console.log('=== END LOGIN RESPONSE ===');
-
           return res.json({
             message: 'Login successful',
             user: userData,
             token: token
           });
-        } else {
-          console.log('Patient password does not match');
         }
       } catch (error) {
         console.error('Error comparing patient password:', error);
       }
-    } else {
-      console.log('No patient user found with email:', normalizedEmail);
     }
 
-    console.log('=== LOGIN FAILED: Invalid credentials ===');
     return res.status(401).json({ 
       message: 'Invalid email or password',
       details: 'Please check your email and password and try again.'
@@ -256,9 +218,6 @@ router.post('/login', async (req, res) => {
 // Register route
 router.post('/register', async (req, res) => {
   try {
-    console.log('=== REGISTRATION REQUEST ===');
-    console.log('Request body:', { ...req.body, password: '[REDACTED]' });
-    
     const {
       firstName, 
       middleName, 
@@ -287,7 +246,6 @@ router.post('/register', async (req, res) => {
     
     // Validate required fields
     if (!firstName || !lastName || !email || !phone || !birthdate || !password || !role) {
-      console.log('Missing required fields');
       return res.status(400).json({ 
         message: 'Missing required fields',
         errors: ['All required fields must be filled out']
@@ -296,15 +254,12 @@ router.post('/register', async (req, res) => {
     
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
-    console.log('Normalized email:', normalizedEmail);
     
     // Check both collections for existing email
-    console.log('Checking for existing email in both collections...');
     const existingStaff = await Staff.findOne({ email: normalizedEmail });
     const existingPatient = await Patient.findOne({ email: normalizedEmail });
     
     if (existingStaff || existingPatient) {
-      console.log('User already exists:', normalizedEmail);
       return res.status(400).json({ 
         message: 'Email already exists',
         errors: ['This email is already registered']
@@ -314,8 +269,6 @@ router.post('/register', async (req, res) => {
     // Generate verification token (only if not pre-verified)
     const verificationToken = isVerified === true ? undefined : generateVerificationToken();
     const tokenExpiry = isVerified === true ? undefined : new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    console.log('Generated verification token with expiry:', tokenExpiry);
-    console.log('isVerified parameter:', isVerified);
 
     // Create user based on role
     let user;
@@ -366,38 +319,28 @@ router.post('/register', async (req, res) => {
 
     // Save user
     await user.save();
-    console.log('User saved successfully');
 
     // Send verification email (only if not pre-verified) - NON-BLOCKING
     if (isVerified !== true && verificationToken) {
       // Start email sending in background without waiting
-      console.log('Starting verification email process in background...');
       
       // Use setImmediate to make this truly non-blocking
       setImmediate(async () => {
         try {
-          console.log('Attempting to send verification email...');
           let emailSent = await sendVerificationEmail(normalizedEmail, verificationToken);
           
         // If main email service fails, try fallback service
         if (!emailSent) {
-          console.log('Main email service failed, trying fallback service...');
           emailSent = await sendEmailViaAPI(normalizedEmail, verificationToken);
         }
           
           if (emailSent) {
-            console.log('Verification email sent successfully');
-          } else {
-            console.log('All email services failed, but registration continues');
           }
         } catch (emailError) {
           console.error('Failed to send verification email:', emailError);
           // Don't prevent registration if email fails
-          console.log('Registration will continue despite email failure');
         }
       });
-    } else {
-      console.log('Skipping verification email - user is pre-verified');
     }
 
     const successMessage = isVerified 
@@ -481,15 +424,11 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
 
-    console.log('=== FORGOT PASSWORD REQUEST ===');
-    console.log('Email:', normalizedEmail);
-
     // Check both collections for the email
     const staff = await Staff.findOne({ email: normalizedEmail });
     const patient = await Patient.findOne({ email: normalizedEmail });
 
     if (!staff && !patient) {
-      console.log('Email not found in database');
       return res.status(404).json({ message: 'Email not found in either patient or staff records' });
     }
 
@@ -497,8 +436,6 @@ router.post('/forgot-password', async (req, res) => {
     const otp = generateOTP();
     const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes expiry
 
-    console.log('Generated OTP:', otp);
-    console.log('OTP Expiry:', new Date(otpExpiry));
 
     // Store OTP
     otpStore.set(normalizedEmail, {
@@ -507,37 +444,26 @@ router.post('/forgot-password', async (req, res) => {
       type: staff ? 'staff' : 'patient'
     });
 
-    console.log('OTP stored successfully');
-    console.log('Current OTP store contents:', Array.from(otpStore.entries()));
-
     // Send OTP via email - NON-BLOCKING
-    console.log('Starting OTP email process in background...');
     
     // Start email sending in background without waiting
     setImmediate(async () => {
       try {
-        console.log('Attempting to send OTP email...');
         let emailSent = await sendVerificationEmail(normalizedEmail, otp, 'password-reset');
         
         // If main email service fails, try fallback service
         if (!emailSent) {
-          console.log('Main email service failed, trying fallback service...');
           emailSent = await sendEmailViaAPI(normalizedEmail, otp, 'password-reset');
         }
         
         if (emailSent) {
-          console.log('OTP email sent successfully');
-        } else {
-          console.log('All email services failed, but OTP is still valid');
         }
       } catch (error) {
         console.error('Error sending OTP:', error);
-        console.log('Email sending failed, but OTP is still valid:', otp);
       }
     });
     
     // Return immediately without waiting for email
-    console.log('OTP generated successfully, returning response immediately');
     return res.json({ 
       message: 'OTP sent successfully. Please check your email.',
       otp: otp // Include OTP in response for testing (remove in production)
@@ -554,32 +480,21 @@ router.post('/verify-otp', async (req, res) => {
     const { email, otp } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
 
-    console.log('=== OTP VERIFICATION ATTEMPT ===');
-    console.log('Email:', normalizedEmail);
-    console.log('Received OTP:', otp);
-    console.log('OTP Store contents:', Array.from(otpStore.entries()));
-
     const storedData = otpStore.get(normalizedEmail);
-    console.log('Stored data for email:', storedData);
 
     if (!storedData) {
-      console.log('No OTP found for this email');
       return res.status(400).json({ message: 'No OTP found for this email' });
     }
 
     if (Date.now() > storedData.expiry) {
-      console.log('OTP expired. Current time:', Date.now(), 'Expiry:', storedData.expiry);
       otpStore.delete(normalizedEmail);
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
-    console.log('Comparing OTPs - Received:', otp, 'Stored:', storedData.otp);
     if (storedData.otp !== otp) {
-      console.log('OTP mismatch');
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    console.log('OTP verified successfully');
     return res.json({ message: 'OTP verified successfully' });
   } catch (error) {
     console.error('OTP verification error:', error);
@@ -649,9 +564,6 @@ router.get('/manual-verify/:email', async (req, res) => {
     const { email } = req.params;
     const normalizedEmail = email.toLowerCase().trim();
     
-    console.log('=== MANUAL VERIFICATION REQUEST ===');
-    console.log('Email:', normalizedEmail);
-    
     // Find user in both collections
     const staff = await Staff.findOne({ email: normalizedEmail });
     const patient = await Patient.findOne({ email: normalizedEmail });
@@ -679,8 +591,6 @@ router.get('/manual-verify/:email', async (req, res) => {
     user.tokenExpiry = undefined;
     await user.save();
     
-    console.log('✅ Account manually verified:', normalizedEmail);
-    
     return res.json({ 
       message: 'Account successfully verified',
       email: normalizedEmail,
@@ -706,21 +616,13 @@ router.post('/test-email', async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    console.log('=== EMAIL TESTING ENDPOINT ===');
-    console.log('Testing email to:', email);
-    console.log('Type:', type);
-
     const testToken = 'test-token-' + Date.now();
     
     // Test main email service
-    console.log('Testing main email service...');
     let mainServiceResult = await sendVerificationEmail(email, testToken, type);
-    console.log('Main service result:', mainServiceResult);
     
     // Test alternative email service
-    console.log('Testing alternative email service...');
     let altServiceResult = await sendEmailViaAPI(email, testToken, type);
-    console.log('Alternative service result:', altServiceResult);
 
     return res.json({
       message: 'Email test completed',
@@ -751,7 +653,6 @@ router.post('/logout', async (req, res) => {
     const bodyToken = req.body && typeof req.body.token === 'string' ? req.body.token : null;
     const token = headerToken || bodyToken;
     if (!token) {
-      console.log('Logout called without token. Headers received:', req.headers);
       return res.status(400).json({ message: 'Missing token' });
     }
 
@@ -759,7 +660,6 @@ router.post('/logout', async (req, res) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (e) {
-      console.log('Logout token verification failed:', e && e.message);
       return res.status(401).json({ message: 'Invalid token' });
     }
 
@@ -784,7 +684,6 @@ router.post('/logout', async (req, res) => {
           console.error('Failed to write staff sign-out audit:', auditErr);
         }
       } else {
-        console.log('Logout: staff not found for userId:', decoded.userId);
       }
     } else if (role === 'patient') {
       const patient = await Patient.findOne({ patientId: decoded.userId });
@@ -804,7 +703,6 @@ router.post('/logout', async (req, res) => {
           console.error('Failed to write patient sign-out audit:', auditErr);
         }
       } else {
-        console.log('Logout: patient not found for userId:', decoded.userId);
       }
     }
 
