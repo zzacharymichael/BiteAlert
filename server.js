@@ -18,9 +18,6 @@ const path = require('path');
 // Load environment variables
 dotenv.config();
 
-console.log('EMAIL_USER:', process.env.EMAIL_USER);
-console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Loaded' : 'Missing');
-
 const app = express();
 
 // CORS configuration
@@ -50,11 +47,9 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) === -1) {
-      console.log('CORS blocked request from origin:', origin);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
-    console.log('CORS allowed request from origin:', origin);
     return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -77,21 +72,12 @@ app.get('/verify-email/:token', (req, res) => {
 // Debug middleware to log all requests (only in development)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    console.log('=== INCOMING REQUEST ===');
-    console.log('Method:', req.method);
-    console.log('URL:', req.url);
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
-    console.log('=== END REQUEST ===');
     next();
   });
 }
 
 // MongoDB Connection with retry logic
 const connectWithRetry = async () => {
-  console.log('Attempting to connect to MongoDB...');
-  console.log('MongoDB URI:', process.env.MONGODB_URI);
-  
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
@@ -100,13 +86,9 @@ const connectWithRetry = async () => {
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
     });
     
-    console.log('=== MONGODB CONNECTION SUCCESS ===');
-    console.log('Connected to MongoDB successfully');
-    console.log('Database:', process.env.MONGODB_URI.split('/').pop());
   } catch (err) {
     console.error('=== MONGODB CONNECTION ERROR ===');
     console.error('MongoDB connection error:', err);
-    console.log('Retrying in 5 seconds...');
     setTimeout(connectWithRetry, 5000);
   }
 };
@@ -126,7 +108,6 @@ app.use('/api/notifications', notificationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  console.log('Health check requested');
   res.json({ 
     status: 'ok', 
     message: 'Server is running',
@@ -166,7 +147,6 @@ app.get('/api/test', (req, res) => {
 // Manual trigger for treatment reminders (for testing)
 app.post('/api/trigger-reminders', async (req, res) => {
   try {
-    console.log('=== MANUAL TRIGGER: TREATMENT REMINDERS ===');
     const result = await cronService.triggerTreatmentReminders();
     res.json({
       message: 'Treatment reminders triggered successfully',
@@ -186,7 +166,6 @@ app.post('/api/trigger-reminders', async (req, res) => {
 // Test endpoint to create CronExecution record manually
 app.post('/api/test-cron-execution', async (req, res) => {
   try {
-    console.log('=== TESTING CRON EXECUTION RECORD ===');
     const CronExecution = require('./models/CronExecution');
     
     const today = new Date();
@@ -204,9 +183,7 @@ app.post('/api/test-cron-execution', async (req, res) => {
       }
     });
     
-    console.log('📝 Creating test cron execution record:', executionRecord);
     await executionRecord.save();
-    console.log('✅ Test cron execution record saved with ID:', executionRecord._id);
     
     res.json({
       message: 'Test cron execution record created successfully',
@@ -224,16 +201,13 @@ app.post('/api/test-cron-execution', async (req, res) => {
 // Check if cron_executions collection exists and has data
 app.get('/api/check-cron-executions', async (req, res) => {
   try {
-    console.log('=== CHECKING CRON EXECUTIONS COLLECTION ===');
     const CronExecution = require('./models/CronExecution');
     
     // Count all records
     const count = await CronExecution.countDocuments();
-    console.log('📊 Total cron executions:', count);
     
     // Get all records
     const records = await CronExecution.find({}).sort({ executedAt: -1 }).limit(10);
-    console.log('📋 Recent cron executions:', records.length);
     
     res.json({
       message: 'Cron executions collection check',
@@ -290,20 +264,10 @@ const PORT = process.env.PORT || 3000;
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Local: http://localhost:${PORT}`);
-  console.log(`Network: http://0.0.0.0:${PORT}`);
-  console.log('Available routes:');
-  console.log('- POST /api/auth/register');
-  console.log('- POST /api/auth/login');
-  console.log('- GET /api/test');
-  console.log('- GET /api/health');
-  console.log('- GET /api/debug/db');
   
   // Start cron service for treatment reminders
   try {
     cronService.start();
-    console.log('✅ Cron service started for treatment reminders');
   } catch (error) {
     console.error('❌ Failed to start cron service:', error);
   }
