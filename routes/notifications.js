@@ -20,7 +20,6 @@ try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
-  console.log('✅ Firebase Admin SDK initialized');
 } catch (error) {
   console.warn('⚠️ Firebase Admin SDK not initialized:', error.message);
   console.warn('⚠️ Push notifications will not work without proper Firebase configuration');
@@ -68,9 +67,6 @@ router.post('/register-token', async (req, res) => {
       isActive: true 
     }).distinct('userId');
 
-    console.log(`✅ FCM token registered for user ${userId} (${userRole}) on device ${deviceId}`);
-    console.log(`📱 Device ${deviceId} now has ${usersOnDevice.length} users`);
-    
     res.json({ 
       message: 'FCM token registered successfully',
       userId,
@@ -120,7 +116,6 @@ router.post('/send-to-user', async (req, res) => {
     };
 
     const response = await admin.messaging().send(message);
-    console.log(`✅ Notification sent to user ${userId}: ${response}`);
     
     res.json({ 
       message: 'Notification sent successfully',
@@ -138,8 +133,6 @@ router.post('/send-to-user', async (req, res) => {
 // Function to send treatment reminder notifications
 async function sendTreatmentReminders() {
   try {
-    console.log('=== SENDING TREATMENT REMINDERS ===');
-    
     // Get all patients with treatments scheduled for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -162,8 +155,6 @@ async function sendTreatmentReminders() {
         { treatmentStatus: { $ne: 'completed' } }
       ]
     });
-
-    console.log(`Found ${todayTreatments.length} treatments for today`);
 
     let notificationsSent = 0;
     const results = [];
@@ -200,7 +191,6 @@ async function sendTreatmentReminders() {
         });
         
         if (!userToken) {
-          console.log(`No FCM token found for patient ${treatment.patientId}`);
           continue;
         }
 
@@ -212,7 +202,6 @@ async function sendTreatmentReminders() {
             patientName = `${patient.firstName} ${patient.lastName}`.trim();
           }
         } catch (error) {
-          console.log(`Could not fetch patient name for ${treatment.patientId}:`, error.message);
         }
 
         // Check if this device has multiple users
@@ -253,7 +242,6 @@ async function sendTreatmentReminders() {
         };
 
         const response = await admin.messaging().send(message);
-        console.log(`✅ Treatment reminder sent to patient ${treatment.patientId}: ${response}`);
         
         notificationsSent++;
         results.push({
@@ -278,8 +266,6 @@ async function sendTreatmentReminders() {
       }
     }
 
-    console.log(`✅ Treatment reminders completed: ${notificationsSent}/${todayTreatments.length} sent`);
-    
     return {
       message: 'Treatment reminders processed',
       totalTreatments: todayTreatments.length,
@@ -399,9 +385,6 @@ router.delete('/remove-token/:userId', async (req, res) => {
       isActive: true 
     }).distinct('userId');
 
-    console.log(`✅ FCM token removed for user ${userId}`);
-    console.log(`📱 Device ${userToken.deviceId} now has ${remainingUsersOnDevice.length} users`);
-    
     res.json({ 
       message: 'FCM token removed successfully',
       userId,
@@ -452,7 +435,6 @@ router.post('/test-notification', async (req, res) => {
     };
 
     const response = await admin.messaging().send(message);
-    console.log(`✅ Test notification sent to user ${userId}: ${response}`);
     
     res.json({ 
       message: 'Test notification sent successfully',
