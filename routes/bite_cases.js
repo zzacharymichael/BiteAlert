@@ -87,26 +87,6 @@ async function resolveActor(req) {
 // Create a new bite case
 router.post('/', async (req, res) => {
   try {
-    console.log('Received request to create bite case:', req.body);
-    console.log('Backend create - PhilHealth No received:', req.body.philhealthNo);
-    console.log('Backend create - Management object received:', req.body.management);
-    console.log('Type of Exposure checkboxes:', {
-      typeNonBite: req.body.typeNonBite,
-      typeBite: req.body.typeBite
-    });
-    console.log('Site of Bite checkboxes:', {
-      headBite: req.body.headBite,
-      faceBite: req.body.faceBite,
-      neckBite: req.body.neckBite
-    });
-    console.log('Management checkboxes:', {
-      washingWoundYes: req.body.washingWoundYes,
-      washingWoundNo: req.body.washingWoundNo,
-      category1: req.body.category1,
-      category2: req.body.category2,
-      category3: req.body.category3
-    });
-    
     // Preprocess the request body
     const processedBody = {
       ...req.body,
@@ -199,7 +179,6 @@ router.post('/', async (req, res) => {
     processedBody.management = req.body.management || {};
 
     // Ensure initiallyAssessedBy is populated - prefer body, fallback to headers, else empty
-    console.log('Create route - initiallyAssessedBy (raw):', req.body.initiallyAssessedBy);
     let initialAssessor = req.body.initiallyAssessedBy;
     if (!initialAssessor || initialAssessor === '""') {
       // Accept staff identity via headers when mobile/web sends it
@@ -209,42 +188,8 @@ router.post('/', async (req, res) => {
       }
     }
     processedBody.initiallyAssessedBy = initialAssessor || '';
-    console.log('Create route - initiallyAssessedBy (processed):', processedBody.initiallyAssessedBy);
-
-    console.log('Backend received array data:', {
-      typeOfExposure: req.body.typeOfExposure,
-      siteOfBite: req.body.siteOfBite,
-      natureOfInjury: req.body.natureOfInjury,
-      externalCause: req.body.externalCause,
-      placeOfOccurrence: req.body.placeOfOccurrence,
-      disposition: req.body.disposition,
-      management: req.body.management
-    });
-    
-    console.log('Final processed body arrays:', {
-      typeOfExposure: processedBody.typeOfExposure,
-      siteOfBite: processedBody.siteOfBite,
-      natureOfInjury: processedBody.natureOfInjury,
-      externalCause: processedBody.externalCause,
-      placeOfOccurrence: processedBody.placeOfOccurrence,
-      disposition: processedBody.disposition,
-      animalProfile: processedBody.animalProfile,
-      patientImmunization: processedBody.patientImmunization,
-      currentImmunization: processedBody.currentImmunization,
-      management: processedBody.management
-    });
-    
-    console.log('Raw boolean values being processed:');
-    console.log('typeNonBite:', req.body.typeNonBite, 'typeBite:', req.body.typeBite);
-    console.log('headBite:', req.body.headBite, 'faceBite:', req.body.faceBite);
-    console.log('washingWoundYes:', req.body.washingWoundYes, 'washingWoundNo:', req.body.washingWoundNo);
-    
     const biteCase = new BiteCase(processedBody);
     const savedBiteCase = await biteCase.save();
-    
-    console.log('Bite case saved successfully:', savedBiteCase);
-    console.log('Backend create - PhilHealth No saved:', savedBiteCase.philhealthNo);
-    console.log('Backend create - Management object saved:', savedBiteCase.management);
     // Write audit trail: Created bite case
     try {
       let actor = await resolveActor(req);
@@ -294,9 +239,6 @@ router.post('/', async (req, res) => {
 // Update a bite case
 router.put('/:id', async (req, res) => {
   try {
-    console.log('Received request to update bite case:', req.params.id);
-    console.log('Update data:', req.body);
-    console.log('Backend received philhealthNo:', req.body.philhealthNo);
     // Load existing document to preserve unspecified fields
     const existing = await BiteCase.findById(req.params.id);
     if (!existing) {
@@ -359,8 +301,6 @@ router.put('/:id', async (req, res) => {
       if (headerName) update['finalAssessedBy'] = headerName;
     }
 
-    console.log('Applying $set update keys:', Object.keys(update));
-
     // Determine if meaningful fields actually change before writing audit entries
     const nonMeaningfulFields = new Set([
       'initiallyAssessedBy',
@@ -394,7 +334,6 @@ router.put('/:id', async (req, res) => {
         }
       }
     } catch (cmpErr) {
-      console.log('Compare update vs existing failed, assuming changed:', cmpErr?.message);
       meaningfulChanged = true;
     }
 
@@ -425,9 +364,6 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Bite case not found' });
     }
 
-    console.log('Bite case updated successfully:', updatedBiteCase);
-    console.log('Returned philhealthNo:', updatedBiteCase.philhealthNo);
-    console.log('Returned management:', updatedBiteCase.management);
     // Write audit trail: Updated bite case (only if meaningful change and explicitly intended)
     if (meaningfulChanged) {
       try {
@@ -492,8 +428,6 @@ router.put('/:id', async (req, res) => {
       } catch (auditErr) {
         console.error('Failed to write audit for update bite case:', auditErr);
       }
-    } else {
-      console.log('No meaningful changes detected; skipping update audit log.');
     }
 
     res.json(updatedBiteCase);
@@ -530,9 +464,7 @@ router.get('/:id', async (req, res) => {
 // Get bite cases by patient ID
 router.get('/patient/:patientId', async (req, res) => {
   try {
-    console.log('Fetching bite cases for patient ID:', req.params.patientId);
     const biteCases = await BiteCase.find({ patientId: req.params.patientId });
-    console.log('Found bite cases:', biteCases);
     res.json(biteCases);
   } catch (error) {
     console.error('Error fetching bite cases:', error);
@@ -543,14 +475,12 @@ router.get('/patient/:patientId', async (req, res) => {
 // Get bite case by registration number
 router.get('/registration/:registrationNumber', async (req, res) => {
   try {
-    console.log('Fetching bite case by registration number:', req.params.registrationNumber);
     const biteCase = await BiteCase.findOne({ registrationNumber: req.params.registrationNumber });
     
     if (!biteCase) {
       return res.status(404).json({ message: 'Bite case not found' });
     }
     
-    console.log('Found bite case:', biteCase);
     res.json(biteCase);
   } catch (error) {
     console.error('Error fetching bite case:', error);
