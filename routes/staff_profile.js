@@ -6,21 +6,9 @@ const mongoose = require('mongoose');
 // Get staff profile by ID
 router.get('/:id', async (req, res) => {
   try {
-    console.log('=== FETCHING STAFF PROFILE ===');
-    console.log('Requested staff ID:', req.params.id);
-
     const staff = await Staff.findOne({ staffId: req.params.id });
-    console.log('Staff found:', staff ? 'Yes' : 'No');
-    if (staff) {
-      console.log('Staff details:', {
-        id: staff.staffId,
-        email: staff.email,
-        name: `${staff.firstName} ${staff.lastName}`
-      });
-    }
 
     if (!staff) {
-      console.log('Staff not found in database');
       return res.status(404).json({ message: 'Staff profile not found' });
     }
 
@@ -43,10 +31,6 @@ router.get('/:id', async (req, res) => {
       updatedAt: staff.updatedAt
     };
 
-    console.log('=== SENDING STAFF PROFILE ===');
-    console.log('Formatted staff data:', staffData);
-    console.log('=== END STAFF PROFILE ===');
-
     res.json(staffData);
   } catch (error) {
     console.error('Error fetching staff profile:', error);
@@ -57,13 +41,8 @@ router.get('/:id', async (req, res) => {
 // Update staff profile
 router.put('/:id', async (req, res) => {
   try {
-    console.log('=== UPDATING STAFF PROFILE ===');
-    console.log('Staff ID to update:', req.params.id);
-    console.log('Update data:', req.body);
-
     const staff = await Staff.findOne({ staffId: req.params.id });
     if (!staff) {
-      console.log('Staff not found in database');
       return res.status(404).json({ message: 'Staff profile not found' });
     }
 
@@ -103,10 +82,6 @@ router.put('/:id', async (req, res) => {
       createdAt: staff.createdAt,
       updatedAt: staff.updatedAt
     };
-
-    console.log('=== SENDING UPDATED STAFF PROFILE ===');
-    console.log('Updated staff data:', updatedStaffData);
-    console.log('=== END UPDATED STAFF PROFILE ===');
 
     res.json(updatedStaffData);
   } catch (error) {
