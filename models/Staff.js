@@ -132,19 +132,15 @@ staffSchema.pre('save', async function(next) {
 
       // Generate new staff ID
       this.staffId = `STF-${currentYear}${sequence.toString().padStart(4, '0')}`;
-      console.log('Generated staffId:', this.staffId);
     }
 
     // Hash password before saving
     if (!this.isModified('password')) {
-      console.log('Password not modified, skipping hash');
       return next();
     }
 
-    console.log('Hashing password for staff:', this.email);
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    console.log('Password hashed successfully');
     next();
   } catch (error) {
     console.error('Error in pre-save middleware:', error);
@@ -155,11 +151,6 @@ staffSchema.pre('save', async function(next) {
 // Method to compare password
 staffSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    console.log('=== STAFF PASSWORD COMPARISON ===');
-    console.log('Comparing passwords for staff:', this.email);
-    console.log('Stored password hash exists:', !!this.password);
-    console.log('Candidate password received:', !!candidatePassword);
-    
     if (!this.password) {
       console.error('No password hash stored for user');
       return false;
@@ -170,12 +161,7 @@ staffSchema.methods.comparePassword = async function(candidatePassword) {
       return false;
     }
     
-    // Log the first few characters of the stored hash for debugging
-    console.log('Stored hash starts with:', this.password.substring(0, 10) + '...');
-    
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
-    console.log('Password comparison result:', isMatch);
-    console.log('=== END PASSWORD COMPARISON ===');
     return isMatch;
   } catch (error) {
     console.error('Error comparing passwords:', error);
