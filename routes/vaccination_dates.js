@@ -32,14 +32,12 @@ async function resolveStaff(req) {
 // Create vaccination dates for a bite case
 router.post('/', async (req, res) => {
   try {
-    console.log('Creating vaccination dates:', req.body);
     const vaccinationDateData = {
       ...req.body,
       treatmentStatus: req.body.treatmentStatus || 'in_progress'
     };
     const vaccinationDate = new VaccinationDate(vaccinationDateData);
     const savedVaccinationDate = await vaccinationDate.save();
-    console.log('Vaccination dates saved:', savedVaccinationDate);
     res.status(201).json(savedVaccinationDate);
   } catch (error) {
     console.error('Error creating vaccination dates:', error);
@@ -80,8 +78,6 @@ router.get('/', async (req, res) => {
 // Update vaccination dates
 router.put('/:id', async (req, res) => {
   try {
-    console.log('Updating vaccination dates. Request body:', req.body);
-    
     // Get the existing record first
     const existingVaccinationDate = await VaccinationDate.findById(req.params.id);
     if (!existingVaccinationDate) {
@@ -109,9 +105,6 @@ router.put('/:id', async (req, res) => {
       vaccinationDateData.d28Status = req.body.d28Status;
     }
 
-    console.log('Processed vaccination date data:', vaccinationDateData);
-    console.log('Treatment status being set to:', req.body.treatmentStatus);
-    
     const updatedVaccinationDate = await VaccinationDate.findByIdAndUpdate(
       req.params.id,
       vaccinationDateData,
@@ -121,9 +114,6 @@ router.put('/:id', async (req, res) => {
     if (!updatedVaccinationDate) {
       return res.status(404).json({ message: 'Vaccination dates not found' });
     }
-
-    console.log('Updated vaccination date:', updatedVaccinationDate);
-
     // Keep bite_cases.scheduleDates in sync with vaccination dates
     try {
       const scheduleDates = [
