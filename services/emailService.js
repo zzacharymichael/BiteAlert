@@ -7,20 +7,10 @@ let sgMail;
 try {
   sgMail = require('@sendgrid/mail');
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log('✅ SendGrid initialized successfully');
 } catch (error) {
-  console.log('⚠️ SendGrid not available:', error.message);
-  console.log('⚠️ Make sure to install: npm install @sendgrid/mail');
+  console.warn('SendGrid not available:', error.message);
   sgMail = null;
 }
-
-console.log('=== EMAIL SERVICE CONFIGURATION ===');
-console.log('SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? 'Loaded' : 'Missing');
-console.log('EMAIL_USER:', process.env.EMAIL_USER);
-console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Loaded' : 'Missing');
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('Platform:', process.platform);
 
 // Use default email configuration if environment variables are not set
 const emailUser = process.env.EMAIL_USER || 'bitealert.app@gmail.com';
@@ -58,8 +48,6 @@ if (transporter) {
 transporter.verify(function(error, success) {
   if (error) {
     console.error('Email transporter verification failed:', error);
-  } else {
-    console.log('Email transporter is ready to send messages');
   }
 });
 } else {
@@ -74,14 +62,9 @@ const generateVerificationToken = () => {
 // SendGrid email sending function
 const sendEmailViaSendGrid = async (email, token, type = 'verification') => {
   try {
-    console.log('=== SENDING EMAIL VIA SENDGRID ===');
-    console.log('To:', email);
-    console.log('Type:', type);
-    console.log('Token:', token);
-
     // Check if SendGrid is available
     if (!sgMail || !process.env.SENDGRID_API_KEY) {
-      console.log('⚠️ SendGrid not configured. Skipping SendGrid email send.');
+      console.warn('SendGrid not configured. Skipping SendGrid email send.');
       return false;
     }
 
@@ -178,12 +161,7 @@ const sendEmailViaSendGrid = async (email, token, type = 'verification') => {
       throw new Error('Invalid email type');
     }
 
-    console.log('📧 Sending email via SendGrid...');
-    const response = await sgMail.send(msg);
-    
-    console.log('✅ SendGrid email sent successfully!');
-    console.log('📧 Response status:', response[0].statusCode);
-    console.log('📧 Message ID:', response[0].headers['x-message-id']);
+    await sgMail.send(msg);
     
     return true;
     
@@ -197,22 +175,14 @@ const sendEmailViaSendGrid = async (email, token, type = 'verification') => {
 // Send verification email with SendGrid as primary service
 const sendVerificationEmail = async (email, token, type = 'verification') => {
   try {
-    console.log('=== SENDING EMAIL ===');
-    console.log('To:', email);
-    console.log('Type:', type);
-    console.log('Token:', token);
-
     // Try SendGrid first (preferred for production)
-    console.log('📧 Attempting to send email via SendGrid...');
     let emailSent = await sendEmailViaSendGrid(email, token, type);
     
     if (emailSent) {
-      console.log('✅ SendGrid email sent successfully!');
       return true;
     }
 
     // Fallback to Nodemailer if SendGrid fails
-    console.log('📧 SendGrid failed, trying Nodemailer...');
 
     // Check if email configuration is available
     if (!emailUser || !emailPassword || emailPassword === 'your-app-password-here') {
@@ -229,7 +199,6 @@ const sendVerificationEmail = async (email, token, type = 'verification') => {
     }
 
     // Use Nodemailer for email sending
-    console.log('📧 Attempting to send email via Nodemailer...');
 
     let mailOptions;
     
@@ -324,13 +293,6 @@ const sendVerificationEmail = async (email, token, type = 'verification') => {
       throw new Error('Invalid email type');
     }
 
-    console.log('Sending email via Nodemailer...');
-    console.log('Email details:', {
-      to: mailOptions.to,
-      subject: mailOptions.subject,
-      from: mailOptions.from
-    });
-    
     // Add timeout wrapper for email sending
     const emailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => {
@@ -338,24 +300,18 @@ const sendVerificationEmail = async (email, token, type = 'verification') => {
     });
     
     try {
-      const info = await Promise.race([emailPromise, timeoutPromise]);
-      console.log('✅ Email sent successfully via Nodemailer:', info.messageId);
-      console.log('📧 Email response:', info.response);
+      await Promise.race([emailPromise, timeoutPromise]);
       return true;
     } catch (sendError) {
-      console.log('⚠️ Nodemailer email sending failed:', sendError.message);
-      console.log('⚠️ This is expected on cloud hosting platforms like Render');
-      console.log('⚠️ Will return false to trigger fallback service');
+      console.warn('Nodemailer email sending failed:', sendError.message);
       return false; // Return false instead of throwing
     }
   } catch (error) {
-    console.log('⚠️ Email service error:', error.message);
-    console.log('⚠️ This is expected on cloud hosting platforms like Render');
-    console.log('⚠️ Will return false to trigger fallback service');
+    console.warn('Email service error:', error.message);
     
     // Don't throw error if email service is not configured
     if (!emailUser || !emailPassword || emailPassword === 'your-app-password-here') {
-      console.log('⚠️ Email service not configured. Registration will continue without email verification.');
+      console.warn('Email service not configured. Registration will continue without email verification.');
       return true;
     }
     
@@ -366,50 +322,24 @@ const sendVerificationEmail = async (email, token, type = 'verification') => {
 // Gmail fallback email service
 const sendEmailViaAPI = async (email, token, type = 'verification') => {
   try {
-    console.log('=== ATTEMPTING GMAIL FALLBACK SERVICE ===');
-    console.log('To:', email);
-    console.log('Type:', type);
-    console.log('Token:', token);
-    
     // Import the Gmail service
     const { sendGmailVerification, sendEmailViaExternalService } = require('./gmailService');
     
     // Try Gmail service first
-    console.log('📧 Trying Gmail service...');
     let emailSent = await sendGmailVerification(email, token, type);
     
     if (emailSent) {
-      console.log('✅ Gmail service succeeded');
       return true;
     }
     
     // If Gmail fails, try external service
-    console.log('📧 Gmail service failed, trying external service...');
     emailSent = await sendEmailViaExternalService(email, token, type);
     
     if (emailSent) {
-      console.log('✅ External service succeeded');
       return true;
     }
     
     // If both fail, log the verification details as fallback
-    console.log('📧 Both services failed, logging verification details...');
-    const verificationUrl = `https://bitealert-yzau.onrender.com/verify-email/${token}`;
-    
-    console.log('📧 FALLBACK EMAIL SERVICE:');
-    if (type === 'verification') {
-      console.log('📧 Verification email details:');
-      console.log('🔗 Verification URL:', verificationUrl);
-      console.log('📧 Email:', email);
-      console.log('🔑 Token:', token);
-      console.log('💡 User can click the link to verify their account');
-    } else if (type === 'password-reset') {
-      console.log('📧 Password reset email details:');
-      console.log('🔑 OTP Code:', token);
-      console.log('📧 Email:', email);
-      console.log('💡 User can use the OTP to reset their password');
-    }
-    
     return true; // Return success to not block registration
     
   } catch (error) {
@@ -421,28 +351,7 @@ const sendEmailViaAPI = async (email, token, type = 'verification') => {
 // Simple HTTP email service (placeholder)
 const sendEmailViaHTTP = async (email, token, type = 'verification') => {
   try {
-    console.log('=== SIMPLE EMAIL SERVICE ===');
-    console.log('To:', email);
-    console.log('Type:', type);
-    console.log('Token:', token);
-    
     // Simple fallback - just log the verification details
-    const verificationUrl = `https://bitealert-yzau.onrender.com/verify-email/${token}`;
-    
-    console.log('📧 SIMPLE EMAIL SERVICE:');
-    if (type === 'verification') {
-      console.log('📧 Verification email details:');
-      console.log('🔗 Verification URL:', verificationUrl);
-      console.log('📧 Email:', email);
-      console.log('🔑 Token:', token);
-      console.log('💡 User can click the link to verify their account');
-    } else if (type === 'password-reset') {
-      console.log('📧 Password reset email details:');
-      console.log('🔑 OTP Code:', token);
-      console.log('📧 Email:', email);
-      console.log('💡 User can use the OTP to reset their password');
-    }
-    
     return true; // Return success to not block registration
     
   } catch (error) {
