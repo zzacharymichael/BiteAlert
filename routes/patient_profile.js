@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Patient = require('../models/Patient');
-const mongoose = require('mongoose');
 
 // Get all patients
 router.get('/', async (req, res) => {
   try {
-    console.log('=== FETCHING ALL PATIENTS ===');
     const patients = await Patient.find({}, {
       firstName: 1,
       middleName: 1,
@@ -14,8 +12,6 @@ router.get('/', async (req, res) => {
       patientId: 1,
       barangay: 1 // <-- add this
     });
-    
-    console.log('Number of patients found:', patients.length);
     
     const formattedPatients = patients.map(patient => ({
       id: patient.patientId,
@@ -25,7 +21,6 @@ router.get('/', async (req, res) => {
       barangay: patient.barangay || '' // <-- add this
     }));
     
-    console.log('Formatted patients:', formattedPatients);
     res.json(formattedPatients);
   } catch (error) {
     console.error('Error fetching all patients:', error);
@@ -36,14 +31,9 @@ router.get('/', async (req, res) => {
 // Get patient profile by ID
 router.get('/:id', async (req, res) => {
   try {
-    console.log('=== FETCHING PATIENT PROFILE ===');
-    console.log('Requested patient ID:', req.params.id);
-
     const patient = await Patient.findOne({ patientId: req.params.id });
-    console.log('Patient found:', patient ? 'Yes' : 'No');
 
     if (!patient) {
-      console.log('Patient not found in database');
       return res.status(404).json({ message: 'Patient profile not found' });
     }
 
@@ -75,10 +65,6 @@ router.get('/:id', async (req, res) => {
       updatedAt: patient.updatedAt
     };
 
-    console.log('=== SENDING PATIENT PROFILE ===');
-    console.log('Formatted patient data:', patientData);
-    console.log('=== END PATIENT PROFILE ===');
-
     res.json(patientData);
   } catch (error) {
     console.error('Error fetching patient profile:', error);
@@ -89,13 +75,8 @@ router.get('/:id', async (req, res) => {
 // Update patient profile
 router.put('/:id', async (req, res) => {
   try {
-    console.log('=== UPDATING PATIENT PROFILE ===');
-    console.log('Patient ID to update:', req.params.id);
-    console.log('Update data:', req.body);
-
     const patient = await Patient.findOne({ patientId: req.params.id });
     if (!patient) {
-      console.log('Patient not found in database');
       return res.status(404).json({ message: 'Patient profile not found' });
     }
 
@@ -147,10 +128,6 @@ router.put('/:id', async (req, res) => {
       createdAt: patient.createdAt,
       updatedAt: patient.updatedAt
     };
-
-    console.log('=== SENDING UPDATED PATIENT PROFILE ===');
-    console.log('Updated patient data:', updatedPatientData);
-    console.log('=== END UPDATED PATIENT PROFILE ===');
 
     res.json(updatedPatientData);
   } catch (error) {
