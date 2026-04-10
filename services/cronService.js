@@ -16,8 +16,6 @@ class CronService {
       
       // If it's after 8 AM today, check if we missed the execution
       if (currentHour > 8 || (currentHour === 8 && currentMinute > 0)) {
-        console.log('🕐 Checking for missed 8 AM execution...');
-        
         // Check if we already ran today
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Start of today
@@ -28,10 +26,7 @@ class CronService {
         });
         
         if (!existingExecution) {
-          console.log('🕐 No execution found for today - running missed 8 AM treatment reminders...');
           await this.sendTreatmentReminders();
-        } else {
-          console.log('✅ Treatment reminders already executed today');
         }
       }
     } catch (error) {
@@ -42,18 +37,14 @@ class CronService {
   // Start the cron job service
   start() {
     if (this.isRunning) {
-      console.log('⚠️ Cron service is already running');
       return;
     }
-
-    console.log('=== STARTING CRON SERVICE ===');
     
     // Check if we missed today's 8 AM execution
     this.checkForMissedExecution();
     
     // Schedule treatment reminders to run daily at 8:00 AM
     const treatmentReminderJob = cron.schedule('0 8 * * *', async () => {
-      console.log('🕐 Running daily treatment reminder job...');
       await this.sendTreatmentReminders();
     }, {
       scheduled: true,
@@ -62,7 +53,6 @@ class CronService {
 
     // Schedule a test job to run every minute (for testing)
     const testJob = cron.schedule('* * * * *', async () => {
-      console.log('🕐 Test job running...');
       // Uncomment the line below to test treatment reminders
       // await this.sendTreatmentReminders();
     }, {
@@ -71,20 +61,16 @@ class CronService {
     });
 
     this.isRunning = true;
-    console.log('✅ Cron service started successfully');
-    console.log('📅 Treatment reminders scheduled for 8:00 AM daily (Asia/Manila)');
   }
 
   // Stop the cron service
   stop() {
     if (!this.isRunning) {
-      console.log('⚠️ Cron service is not running');
       return;
     }
 
     cron.destroy();
     this.isRunning = false;
-    console.log('✅ Cron service stopped');
   }
 
   // Send treatment reminders
@@ -92,15 +78,9 @@ class CronService {
     let executionRecord = null;
     
     try {
-      console.log('=== SENDING TREATMENT REMINDERS ===');
-      
       // Record the execution start
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
-      
-      console.log('📝 Creating CronExecution record...');
-      console.log('CronExecution model:', typeof CronExecution);
-      console.log('Today date:', today);
       
       executionRecord = new CronExecution({
         jobName: 'treatment_reminders',
@@ -108,11 +88,7 @@ class CronService {
         status: 'running',
         executedAt: new Date()
       });
-      
-      console.log('📝 Saving cron execution record:', executionRecord.toObject());
       const savedRecord = await executionRecord.save();
-      console.log('✅ Cron execution record saved with ID:', savedRecord._id);
-      console.log('✅ Saved record:', savedRecord.toObject());
       
       // Import the notification function directly instead of making HTTP request
       const { sendTreatmentReminders } = require('../routes/notifications');
@@ -120,12 +96,8 @@ class CronService {
       // Call the function directly
       const result = await sendTreatmentReminders();
       
-      console.log('✅ Treatment reminders sent successfully');
-      console.log('Result:', result);
-      
       // Update execution record with success
       if (executionRecord) {
-        console.log('📝 Updating cron execution record with success status');
         await CronExecution.findByIdAndUpdate(executionRecord._id, {
           status: 'success',
           results: {
@@ -134,7 +106,6 @@ class CronService {
             errors: []
           }
         });
-        console.log('✅ Cron execution record updated with success status');
       }
       
       return result;
@@ -143,7 +114,6 @@ class CronService {
       
       // Update execution record with failure
       if (executionRecord) {
-        console.log('📝 Updating cron execution record with failure status');
         await CronExecution.findByIdAndUpdate(executionRecord._id, {
           status: 'failed',
           errorMessage: error.message,
@@ -153,7 +123,6 @@ class CronService {
             errors: [error.message]
           }
         });
-        console.log('✅ Cron execution record updated with failure status');
       }
       
       throw error;
@@ -162,10 +131,8 @@ class CronService {
 
   // Manual trigger for testing
   async triggerTreatmentReminders() {
-    console.log('=== MANUAL TRIGGER: TREATMENT REMINDERS ===');
     try {
       const result = await this.sendTreatmentReminders();
-      console.log('✅ Manual trigger completed successfully');
       return result;
     } catch (error) {
       console.error('❌ Manual trigger failed:', error.message);
