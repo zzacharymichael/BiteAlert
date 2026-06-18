@@ -173,7 +173,7 @@ const biteCaseSchema = new mongoose.Schema({
   burnDegree: {
     type: Number,
     required: false,
-    default: 1
+    default: 0
   },
   burnSite: {
     type: String,
